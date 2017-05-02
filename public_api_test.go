@@ -43,3 +43,29 @@ func Test_Kraken_GetAssetsInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestKraken_GetTradablePairs(t *testing.T) {
+	var k Kraken
+	k.Init()
+
+	r, err := k.GetTradablePairs()
+	if err != nil {
+		t.Error(err)
+	}
+	type TwoStrings struct {
+		Base, Quote string
+	}
+	testCases := map[string]TwoStrings{
+		"XETHXXBT": {"XETH", "XXBT"},
+		"XETCZEUR": {"XETC", "ZEUR"},
+		"XETCZUSD": {"XETC", "ZUSD"},
+		"XXBTZEUR": {"XXBT", "ZEUR"},
+		"XXBTZUSD": {"XXBT", "ZUSD"},
+	}
+
+	for k, v := range testCases {
+		if (*r)[k].Base != v.Base || (*r)[k].Quote != v.Quote {
+			t.Errorf("%s currency pair is missing", k)
+		}
+	}
+}

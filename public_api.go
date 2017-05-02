@@ -8,6 +8,7 @@ import (
 
 const URLGetServerTime string = "https://api.kraken.com/0/public/Time"
 const URLGetAssetsInfo string = "https://api.kraken.com/0/public/Assets"
+const URLGetTradablePairs string = "https://api.kraken.com/0/public/AssetPairs"
 
 /*
  Represents JSON error type.
@@ -101,6 +102,79 @@ func (k *Kraken) GetAssetsInfo() (*AssetsInfoMap, error) {
 
 	defer resp.Body.Close()
 	var dat AssetsInfoResult
+	if err := json.NewDecoder(resp.Body).Decode(&dat); err != nil {
+		return nil, err
+	}
+
+	return &dat.Result, nil
+}
+
+type FeeInfo []float32
+
+type AssetPairInfo struct {
+	/* Alternate pair name. */
+	Altname string `json:"altname"`
+	/* Asset class of base component */
+	AclassBase string `json:"aclass_base"`
+	/* Asset id of base component */
+	Base string `json:"base"`
+	/* Asset class of quote component. */
+	AclassQuote string `json:"aclass_quote"`
+	/* Asset id of quote component. */
+	Quote string `json:"quote"`
+	/* Volume lot size. */
+	Lot string `json:"lot"`
+	/* Scaling decimal places for pair. */
+	PairDecimals byte `json:"pair_decimals"`
+	/* Scaling decimal places for volume. */
+	LotDecimals byte `json:"lot_decimals"`
+	/* Amount to multiply lot volume by to get currency volume. */
+	LotMultiplier byte `json:"lot_multiplier";"`
+	/* Array of leverage amounts available when buying. */
+	LeverageBuy []byte `json:"leverage_buy"`
+	/* Array of leverage amounts available when selling. */
+	LeverageSell []byte `json:"leverage_sell"`
+	/* Fee schedule array in [volume, percent fee] tuples. */
+	Fees []FeeInfo `json:"fees"`
+	/* Maker fee schedule array in [volume, percent fee] tuples (if on maker/taker). */
+	FeesMaker []FeeInfo `json:"fees_maker"`
+	/* Volume discount currency. */
+	FeeVolumeCurrency string `json:"fee_volume_currency"`
+	/* Margin call level. */
+	MarginCall byte `json:"margin_call"`
+	/* Stop-out/liquidation margin level. */
+	MarginStop byte `json:"margin_stop"`
+}
+
+type AssetPairMap map[string]AssetPairInfo
+
+type AssetPairResult struct {
+	Result AssetPairMap   `json:"result"`
+	Error  KrakenApiError `json:"error"`
+}
+
+/*
+ Get tradable asset pairs.
+ Note: If an asset pair is on a maker/taker fee schedule, the taker side
+ is given in "fees" and maker side in "fees_maker".
+ For pairs not on maker/taker, they will only be given in "fees".
+
+ https://www.kraken.com/help/api#get-tradable-pairs
+*/
+func (k *Kraken) GetTradablePairs() (*AssetPairMap, error) {
+
+	req, err := http.NewRequest("GET", URLGetTradablePairs, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := k.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	var dat AssetPairResult
 	if err := json.NewDecoder(resp.Body).Decode(&dat); err != nil {
 		return nil, err
 	}
