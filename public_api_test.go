@@ -1,6 +1,7 @@
-package kraken_api
+package kraken
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -56,11 +57,11 @@ func Test_Kraken_GetTradablePairs(t *testing.T) {
 		Base, Quote string
 	}
 	testCases := map[string]TwoStrings{
-		"XETHXXBT": {"XETH", "XXBT"},
-		"XETCZEUR": {"XETC", "ZEUR"},
-		"XETCZUSD": {"XETC", "ZUSD"},
-		"XXBTZEUR": {"XXBT", "ZEUR"},
-		"XXBTZUSD": {"XXBT", "ZUSD"},
+		XETHXXBT: {"XETH", "XXBT"},
+		XETCZEUR: {"XETC", "ZEUR"},
+		XETCZUSD: {"XETC", "ZUSD"},
+		XXBTZEUR: {"XXBT", "ZEUR"},
+		XXBTZUSD: {"XXBT", "ZUSD"},
 	}
 
 	for k, v := range testCases {
@@ -74,7 +75,7 @@ func Test_Kraken_GetTickerInfo(t *testing.T) {
 	var k Kraken
 	k.Init()
 
-	testCases := []string{"XETHXXBT", "XXBTZEUR"}
+	testCases := []string{XETHXXBT, XXBTZEUR}
 	r, err := k.GetTickerInfo(testCases)
 	if err != nil {
 		t.Error(err)
@@ -89,5 +90,46 @@ func Test_Kraken_GetTickerInfo(t *testing.T) {
 	}
 	if _, ok := (*r)[testCases[1]]; !ok {
 		t.Errorf("%s return TickerInfo is missing", testCases[1])
+	}
+}
+
+func Test_OHLCEntry_UnmarshalJSON(t *testing.T) {
+	const incomingJSON = `[1493786460,"1326.860","1326.880","1324.533","1326.880","1326.643","3.93936569",9]`
+	var data OHLCEntry
+	if err := json.Unmarshal([]byte(incomingJSON), &data); err != nil {
+		t.Errorf("Got error when unmarshal was called: %s", err)
+	}
+
+	if data.Count != 9 {
+		t.Errorf("data.Count expected: 9, got: %d", data.Count)
+	}
+
+	if data.Timestamp != 1493786460 {
+		t.Errorf("data.Timestamp expected: 1493786460, got: %d", data.Timestamp)
+	}
+}
+
+func Test_Kraken_GetOHLCData(t *testing.T) {
+	var k Kraken
+	k.Init()
+
+	testCases := []string{"XETHXXBT", "XXBTZEUR"}
+	for _, v := range testCases {
+		op := NewOHLCQueryOptions()
+		op.Pair = v
+		r, err := k.GetOHLCData(op)
+		if err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		if r.Pair != v {
+			t.Errorf("OHLC pair for %s is wrong", r.Pair)
+		}
+		if r.Last < 1493829480 {
+			t.Errorf("We should get back a last OHLC data index. We got %d", r.Last)
+		}
+		if len(r.Data) < 2 {
+			t.Errorf("OHLC data for %s is missing", r.Pair)
+		}
 	}
 }
