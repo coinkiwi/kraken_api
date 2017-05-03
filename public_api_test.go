@@ -44,7 +44,7 @@ func Test_Kraken_GetAssetsInfo(t *testing.T) {
 	}
 }
 
-func TestKraken_GetTradablePairs(t *testing.T) {
+func Test_Kraken_GetTradablePairs(t *testing.T) {
 	var k Kraken
 	k.Init()
 
@@ -67,5 +67,27 @@ func TestKraken_GetTradablePairs(t *testing.T) {
 		if (*r)[k].Base != v.Base || (*r)[k].Quote != v.Quote {
 			t.Errorf("%s currency pair is missing", k)
 		}
+	}
+}
+
+func Test_Kraken_GetTickerInfo(t *testing.T) {
+	var k Kraken
+	k.Init()
+
+	testCases := []string{"XETHXXBT", "XXBTZEUR"}
+	r, err := k.GetTickerInfo(testCases)
+	if err != nil {
+		t.Error(err)
+		t.Fail()
+	}
+
+	if len(*r) != 2 {
+		t.Errorf("We should get back 2 TickerInfo structs. We got %d", len(*r))
+	}
+	if _, ok := (*r)[testCases[0]]; !ok {
+		t.Errorf("%s return TickerInfo is missing", testCases[0])
+	}
+	if _, ok := (*r)[testCases[1]]; !ok {
+		t.Errorf("%s return TickerInfo is missing", testCases[1])
 	}
 }

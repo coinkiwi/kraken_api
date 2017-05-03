@@ -2,6 +2,7 @@ package kraken_api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -9,6 +10,7 @@ import (
 const URLGetServerTime string = "https://api.kraken.com/0/public/Time"
 const URLGetAssetsInfo string = "https://api.kraken.com/0/public/Assets"
 const URLGetTradablePairs string = "https://api.kraken.com/0/public/AssetPairs"
+const URLGetTickerInfo string = "https://api.kraken.com/0/public/Ticker"
 
 /*
  Represents JSON error type.
@@ -106,6 +108,10 @@ func (k *Kraken) GetAssetsInfo() (*AssetsInfoMap, error) {
 		return nil, err
 	}
 
+	if len(dat.Error) > 0 {
+		return nil, errors.New("We got error" + dat.Error[0])
+	}
+
 	return &dat.Result, nil
 }
 
@@ -177,6 +183,82 @@ func (k *Kraken) GetTradablePairs() (*AssetPairMap, error) {
 	var dat AssetPairResult
 	if err := json.NewDecoder(resp.Body).Decode(&dat); err != nil {
 		return nil, err
+	}
+
+	if len(dat.Error) > 0 {
+		return nil, errors.New("We got error" + dat.Error[0])
+	}
+
+	return &dat.Result, nil
+}
+
+type TickerInfo struct {
+	/* Ask array(<price>, <whole lot volume>, <lot volume>). */
+	A []string
+	/* Bid array(<price>, <whole lot volume>, <lot volume>). */
+	B []string
+	/* Last trade closed array(<price>, <lot volume>). */
+	C []string
+	/* Volume array(<today>, <last 24 hours>). */
+	V []string
+	/* Volume weighted average price array(<today>, <last 24 hours>). */
+	P []string
+	/* Number of trades array(<today>, <last 24 hours>). */
+	T []int
+	/* Low array(<today>, <last 24 hours>). */
+	L []string
+	/* High array(<today>, <last 24 hours>). */
+	H []string
+	/* Today's opening price. */
+	O string
+}
+
+type TickerInfoMap map[string]TickerInfo
+
+type TickerInfoResult struct {
+	Result TickerInfoMap  `json:"result"`
+	Error  KrakenApiError `json:"error"`
+}
+
+/*
+ Get ticker information.
+ Input: comma delimited list of asset pairs to get info on
+ Result: array of pair names and their ticker info
+
+ https://www.kraken.com/help/api#get-ticker-info
+*/
+func (k *Kraken) GetTickerInfo(pairs []string) (*TickerInfoMap, error) {
+
+	if len(pairs) == 0 {
+		return nil, errors.New("Parameter pairs cannot be empty.")
+	}
+	var pairList string
+	pairList = pairs[0]
+	for i := 1; i < len(pairs); i++ {
+		pairList += "," + pairs[i]
+	}
+
+	req, err := http.NewRequest("GET", URLGetTickerInfo, nil)
+	if err != nil {
+		return nil, err
+	}
+	query := req.URL.Query()
+	query.Add("pair", pairList)
+	req.URL.RawQuery = query.Encode()
+	fmt.Println("We have URL that we are doing:    " + req.URL.String())
+	resp, err := k.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	var dat TickerInfoResult
+	if err := json.NewDecoder(resp.Body).Decode(&dat); err != nil {
+		return nil, err
+	}
+
+	if len(dat.Error) > 0 {
+		return nil, errors.New("We got error: " + dat.Error[0])
 	}
 
 	return &dat.Result, nil
