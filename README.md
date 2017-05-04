@@ -1,4 +1,4 @@
-[![Go Report Card](https://goreportcard.com/badge/coinkiwi/kraken_api)](https://goreportcard.com/report/coinkiwi/kraken_api) [![Build Status](https://travis-ci.org/coinkiwi/goreportcard.svg?branch=master)](https://travis-ci.org/coinkiwi/kraken_api)
+[![Go Report Card](https://goreportcard.com/badge/coinkiwi/kraken_api)](https://goreportcard.com/report/coinkiwi/kraken_api) [![Build Status](https://travis-ci.org/coinkiwi/kraken_api.svg?branch=master)](https://travis-ci.org/coinkiwi/kraken_api)
 
 # Introduction
 
