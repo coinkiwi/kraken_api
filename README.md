@@ -1,3 +1,5 @@
+[![Go Report Card](https://goreportcard.com/badge/coinkiwi/kraken_api)](https://goreportcard.com/report/coinkiwi/kraken_api)
+
 # Introduction
 
 DO NOT USE. Work in progress.
