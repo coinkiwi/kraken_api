@@ -221,3 +221,52 @@ func (k *Kraken) GetOHLCData(options *OHLCQueryOptions) (*OHLCEntryData, error) 
 
 	return ohlcData, nil
 }
+
+// GetOrderBook returns current entries in the order book
+//
+// Input:
+// 	pair = asset pair to get market depth for
+//	count = maximum number of asks/bids
+// Result:
+//	<pair_name> = pair name
+//	asks = ask side array of array entries(<price>, <volume>, <timestamp>)
+//	bids = bid side array of array entries(<price>, <volume>, <timestamp>)
+//
+// https://www.kraken.com/help/api#get-order-book
+func (k *Kraken) GetOrderBook(pair string, count int) (*OrderBookMap, error) {
+
+	if len(pair) == 0 {
+		return nil, errors.New("JSON Error: Parameter pair cannot be empty")
+	}
+
+	req, err := http.NewRequest("GET", urlGetOrderBook, nil)
+	if err != nil {
+		return nil, err
+	}
+	query := req.URL.Query()
+	query.Add("pair", pair)
+	query.Add("count", strconv.Itoa(count))
+	req.URL.RawQuery = query.Encode()
+
+	resp, err := k.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	var dat OrderBookResult
+	if err := json.NewDecoder(resp.Body).Decode(&dat); err != nil {
+		return nil, err
+	}
+
+	if len(dat.Error) > 0 {
+		return nil, errors.New("JSON Error: " + dat.Error[0])
+	}
+
+	tmp := dat.Result[pair]
+	tmp.Pair = pair
+	dat.Result[pair] = tmp
+
+	return &dat.Result, nil
+}

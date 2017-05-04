@@ -11,6 +11,7 @@ const (
 	urlGetTradablePairs string = "https://api.kraken.com/0/public/AssetPairs"
 	urlGetTickerInfo    string = "https://api.kraken.com/0/public/Ticker"
 	urlGetOHLCData      string = "https://api.kraken.com/0/public/OHLC"
+	urlGetOrderBook     string = "https://api.kraken.com/0/public/Depth"
 )
 
 /* Some of the common pairs for convenience. */
@@ -221,4 +222,66 @@ func NewOHLCQueryOptions() *OHLCQueryOptions {
 	op.Pair = XXBTZEUR
 	op.Since = ""
 	return op
+}
+
+// OrderBookEntry represents a single entry: price, volume, timestamp
+type OrderBookEntry struct {
+	Timestamp int64
+	Price     string
+	Volume    string
+}
+
+// UnmarshalJSON of the OrderBookEntry
+func (o *OrderBookEntry) UnmarshalJSON(b []byte) error {
+	tmp := [3]json.Number{}
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+	var err1 error
+	o.Timestamp, err1 = tmp[2].Int64()
+	if err1 != nil {
+		return err1
+	}
+	o.Price = tmp[0].String()
+	o.Volume = tmp[1].String()
+	return nil
+}
+
+// OrderBook the bids and asks for a given currency pair
+type OrderBook struct {
+	Pair string
+	Asks []OrderBookEntry
+	Bids []OrderBookEntry
+}
+
+// UnmarshalJSON of the OrderBook
+func (o *OrderBook) UnmarshalJSON(b []byte) error {
+	var tmp = map[string]json.RawMessage{}
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+
+	nAsks := len(tmp["asks"])
+	var asks = make([]OrderBookEntry, nAsks)
+	if err := json.Unmarshal(tmp["asks"], &asks); err != nil {
+		return err
+	}
+	o.Asks = asks
+	nBids := len(tmp["bids"])
+	var bids = make([]OrderBookEntry, nBids)
+	if err := json.Unmarshal(tmp["bids"], &bids); err != nil {
+		return err
+	}
+	o.Bids = bids[:]
+
+	return nil
+}
+
+// OrderBookMap maps the currency pair to OrderBook bids and asks struct
+type OrderBookMap map[string]OrderBook
+
+// OrderBookResult result from the JSON API call.
+type OrderBookResult struct {
+	Result OrderBookMap `json:"result"`
+	Error  APIError     `json:"error"`
 }

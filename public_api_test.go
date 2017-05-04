@@ -133,3 +133,27 @@ func Test_Kraken_GetOHLCData(t *testing.T) {
 		}
 	}
 }
+
+func Test_Kraken_GetOrderBook(t *testing.T) {
+	var k Kraken
+	k.Init()
+
+	testCases := []string{"XETHXXBT", "XXBTZEUR"}
+	for _, v := range testCases {
+		obm, err := k.GetOrderBook(v, 10)
+		if err != nil {
+			t.Error(err)
+			t.Fail()
+		}
+		ob, ok := (*obm)[v]
+		if !ok {
+			t.Errorf("Returned OrderBook doesn't have the %s pair data", v)
+		}
+		if ob.Pair != v {
+			t.Errorf("Returned OrderBook pair mismatch. Expected %s, got: %s", v, ob.Pair)
+		}
+		if ob.Asks[0].Timestamp < 1493829480 {
+			t.Errorf("We should get back reasonably recent order. We got %d", ob.Asks[0].Timestamp)
+		}
+	}
+}
