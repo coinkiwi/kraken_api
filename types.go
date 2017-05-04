@@ -3,15 +3,18 @@ package kraken
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 const (
-	urlGetServerTime    string = "https://api.kraken.com/0/public/Time"
-	urlGetAssetsInfo    string = "https://api.kraken.com/0/public/Assets"
-	urlGetTradablePairs string = "https://api.kraken.com/0/public/AssetPairs"
-	urlGetTickerInfo    string = "https://api.kraken.com/0/public/Ticker"
-	urlGetOHLCData      string = "https://api.kraken.com/0/public/OHLC"
-	urlGetOrderBook     string = "https://api.kraken.com/0/public/Depth"
+	urlBaseURL          string = "https://api.kraken.com/0/public/"
+	urlGetServerTime    string = urlBaseURL + "Time"
+	urlGetAssetsInfo    string = urlBaseURL + "Assets"
+	urlGetTradablePairs string = urlBaseURL + "AssetPairs"
+	urlGetTickerInfo    string = urlBaseURL + "Ticker"
+	urlGetOHLCData      string = urlBaseURL + "OHLC"
+	urlGetOrderBook     string = urlBaseURL + "Depth"
+	urlGetTrades        string = urlBaseURL + "Trades"
 )
 
 /* Some of the common pairs for convenience. */
@@ -43,7 +46,7 @@ type APIError []string
 
 // ServerTime contains server unix timestamp and string date.
 type ServerTime struct {
-	Unixtime uint64 `json:"unixtime"`
+	Unixtime int64  `json:"unixtime"`
 	Rfc1123  string `json:"rfc1123"`
 }
 
@@ -163,7 +166,7 @@ type TickerInfoResult struct {
 
 // OHLCEntry has a single OHLC entry.
 type OHLCEntry struct {
-	Timestamp int64
+	Timestamp time.Time
 	Data      [6]string
 	Count     int64
 }
@@ -175,14 +178,13 @@ func (c *OHLCEntry) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	var data [6]string
-	var err error
-
-	c.Timestamp, err = tmp[0].Int64()
+	tmpTimeSec, err := tmp[0].Int64()
 	if err != nil {
 		return err
 	}
+	c.Timestamp = time.Unix(tmpTimeSec, 0)
 
+	var data [6]string
 	for i := 1; i < 7; i++ {
 		data[0] = tmp[i].String()
 	}
@@ -226,7 +228,7 @@ func NewOHLCQueryOptions() *OHLCQueryOptions {
 
 // OrderBookEntry represents a single entry: price, volume, timestamp
 type OrderBookEntry struct {
-	Timestamp int64
+	Timestamp time.Time
 	Price     string
 	Volume    string
 }
@@ -237,11 +239,11 @@ func (o *OrderBookEntry) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &tmp); err != nil {
 		return err
 	}
-	var err1 error
-	o.Timestamp, err1 = tmp[2].Int64()
+	tmpTime, err1 := tmp[2].Int64()
 	if err1 != nil {
 		return err1
 	}
+	o.Timestamp = time.Unix(tmpTime, 0)
 	o.Price = tmp[0].String()
 	o.Volume = tmp[1].String()
 	return nil
@@ -284,4 +286,85 @@ type OrderBookMap map[string]OrderBook
 type OrderBookResult struct {
 	Result OrderBookMap `json:"result"`
 	Error  APIError     `json:"error"`
+}
+
+// Trade represents single trade
+type Trade struct {
+	Timestamp time.Time
+	Price     string
+	Volume    string
+	BS        string
+	ML        string
+	MISC      string
+}
+
+// UnmarshalJSON for the TradeData
+func (t *Trade) UnmarshalJSON(b []byte) error {
+	var tmp = [6]json.RawMessage{}
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(tmp[0], &t.Price); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(tmp[1], &t.Volume); err != nil {
+		return err
+	}
+	var tmpTimeJSON json.Number
+	if err := json.Unmarshal(tmp[2], &tmpTimeJSON); err != nil {
+		return err
+	}
+	tmpTimeFloat, err := tmpTimeJSON.Float64()
+	if err != nil {
+		return err
+	}
+	var tmpTimeMilliseconds = int64(tmpTimeFloat * 10000)
+	t.Timestamp = time.Unix(0, tmpTimeMilliseconds*int64(100000))
+	if err := json.Unmarshal(tmp[3], &t.BS); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(tmp[4], &t.ML); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(tmp[5], &t.MISC); err != nil {
+		return err
+	}
+	return nil
+}
+
+// TradeBook the bids and asks for a given currency pair
+type TradeBook struct {
+	Pair string
+	Data []Trade
+	Last string
+}
+
+// UnmarshalJSON of the TradeBook
+func (o *TradeBook) UnmarshalJSON(b []byte) error {
+	var tmp = map[string]json.RawMessage{}
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+
+	for k, v := range tmp {
+		if k == "last" {
+			if err := json.Unmarshal(v, &o.Last); err != nil {
+				return err
+			}
+		} else {
+			// k must be the Pair
+			o.Pair = k
+			if err := json.Unmarshal(v, &o.Data); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// TradesResult result from the JSON API call.
+type TradesResult struct {
+	Result TradeBook `json:"result"`
+	Error  APIError  `json:"error"`
 }

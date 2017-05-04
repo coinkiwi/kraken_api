@@ -270,3 +270,52 @@ func (k *Kraken) GetOrderBook(pair string, count int) (*OrderBookMap, error) {
 
 	return &dat.Result, nil
 }
+
+// GetTrades returns the recent trades data
+//
+// Input:
+// 	pair = asset pair to get trade data for
+//	since = return trade data since given id (optional.  exclusive)
+// Output:
+// 	<pair_name> = pair name
+//	array of array entries(<price>, <volume>, <time>, <buy/sell>, <market/limit>, <miscellaneous>)
+//	last = id to be used as since when polling for new trade data
+//
+// https://www.kraken.com/help/api#get-recent-trades
+func (k *Kraken) GetTrades(pair string, since string) (*TradeBook, error) {
+
+	if len(pair) == 0 {
+		return nil, errors.New("JSON Error: Parameter pair cannot be empty")
+	}
+
+	req, err := http.NewRequest("GET", urlGetTrades, nil)
+	if err != nil {
+		return nil, err
+	}
+	query := req.URL.Query()
+	query.Add("pair", pair)
+	if since != "" {
+		query.Add("since", since)
+	}
+	req.URL.RawQuery = query.Encode()
+
+	resp, err := k.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	var dat TradesResult
+	if err := json.NewDecoder(resp.Body).Decode(&dat); err != nil {
+		return nil, err
+	}
+
+	if len(dat.Error) > 0 {
+		return nil, errors.New("JSON Error: " + dat.Error[0])
+	}
+
+	dat.Result.Pair = pair
+
+	return &dat.Result, nil
+}
